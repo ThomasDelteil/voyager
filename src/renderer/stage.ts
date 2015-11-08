@@ -33,8 +33,16 @@ class Stage {
             if (obj instanceof CelestialBody) {
                 obj = <CelestialBody> obj;
                 this.circle(obj.p.x, obj.p.y, obj.r, getCelestialBodyColour(obj.type));
+
             } else if (obj instanceof Starship) {
-                this.square(obj.p.x, obj.p.y, obj.r, '#F00');
+                obj = <Starship> obj;
+
+                this.rect(obj.p.x, obj.p.y, 8, 8, '#0CF');
+                if (obj.fire.up)    this.rect(obj.p.x, obj.p.y + 9, 6, 10, '#F00');
+                if (obj.fire.down)  this.rect(obj.p.x, obj.p.y - 9, 6, 10, '#F00');
+                if (obj.fire.left)  this.rect(obj.p.x + 9, obj.p.y, 10, 6, '#F00');
+                if (obj.fire.right) this.rect(obj.p.x - 9, obj.p.y, 10, 6, '#F00');
+
             }
 		}
 	}
@@ -51,9 +59,9 @@ class Stage {
         this.context.fill();
 	}
 
-    protected square(x, y, radius, fill) {
+    protected rect(x, y, width, height, fill) {
         this.context.fillStyle = fill;
-        this.context.fillRect(x - radius/2 + this.width/2,y - radius/2 + this.height/2, radius, radius);
+        this.context.fillRect(x - width/2 + this.width/2,y - height/2 + this.height/2, width, height);
     }
 
 }

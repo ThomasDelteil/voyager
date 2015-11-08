@@ -3,6 +3,13 @@
 /// <reference path="../elements/celestial_body.ts"/>
 
 
+const ARROW_KEYS = {
+	37: 'left',
+	38: 'up',
+	39: 'right',
+	40: 'down'
+};
+
 function orbitingPlanet(
 	gravity: number,
 	sun: CelestialBody,
@@ -24,6 +31,7 @@ function orbitingPlanet(
 class Level {
 
 	public universe: Universe;
+	public starship: Starship;
 
 	constructor(config: Object = {}) {
 
@@ -37,7 +45,7 @@ class Level {
 			new Vector(0, 0)
 		);
 
-		let starship = new Starship(
+		this.starship = new Starship(
 			StarshipType.SATELLITE,
 			0.1, 8,
 			new Vector(0, 200),
@@ -50,11 +58,21 @@ class Level {
 		let planet3 = orbitingPlanet(gravity, sun, 1, 100,  8, 4/3 * Math.PI);
 		// ------ DEFAULT LEVEL ------
 
-		this.universe = new Universe([sun, planet1, planet2, planet3, starship], gravity);
+		this.universe = new Universe([sun, planet1, planet2, planet3, this.starship], gravity);
 	}
 
 	begin() {
-		// TODO initialise stuff
+		let _this = this;
+
+		window.addEventListener('keydown', function(e) {
+			let direction = ARROW_KEYS[e.keyCode];
+			if (direction) _this.starship.startEngine(direction);
+		});
+
+		window.addEventListener('keyup', function(e) {
+			let direction = ARROW_KEYS[e.keyCode];
+			if (direction) _this.starship.stopEngine(direction);
+		});
 	}
 
 	move(dt) {
@@ -63,7 +81,7 @@ class Level {
 	}
 
 	onComplete(callback: Function) {
-
+		// TODO remove event listener
 	}
 
 }

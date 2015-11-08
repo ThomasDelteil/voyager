@@ -155,18 +155,26 @@ var Starship = (function (_super) {
         this.type = type;
         this.fuel = fuel;
         this.orientation = orientation;
-        this.isBurning = false;
+        this.fire = { up: false, down: false, left: false, right: false };
     }
     // overrides Particle.move()
     Starship.prototype.move = function (dt, force) {
+        if (this.fire.up)
+            force.add(new Vector(0, -0.00001));
+        if (this.fire.down)
+            force.add(new Vector(0, 0.00001));
+        if (this.fire.left)
+            force.add(new Vector(-0.00001, 0));
+        if (this.fire.right)
+            force.add(new Vector(0.00001, 0));
+        // TODO reduce fuel
         _super.prototype.move.call(this, dt, force);
-        // TODO burn fuel
     };
-    Starship.prototype.startEngine = function () {
-        this.isBurning = true;
+    Starship.prototype.startEngine = function (direction) {
+        this.fire[direction] = true;
     };
-    Starship.prototype.stopEngine = function () {
-        this.isBurning = false;
+    Starship.prototype.stopEngine = function (direction) {
+        this.fire[direction] = false;
     };
     return Starship;
 })(Particle);
@@ -196,6 +204,12 @@ var CelestialType;
 /// <reference path="universe.ts"/>
 /// <reference path="../elements/starship.ts"/>
 /// <reference path="../elements/celestial_body.ts"/>
+var ARROW_KEYS = {
+    37: 'left',
+    38: 'up',
+    39: 'right',
+    40: 'down'
+};
 function orbitingPlanet(gravity, sun, mass, distance, radius, angle) {
     if (angle === void 0) { angle = 0; }
     var speed = Math.sqrt(gravity * (sun.m + mass) / distance);
@@ -209,21 +223,32 @@ var Level = (function () {
         // ------ DEFAULT LEVEL ------
         var gravity = 0.001;
         var sun = new CelestialBody(CelestialType.STAR, 1000, 20, new Vector(0, 0), new Vector(0, 0));
-        var starship = new Starship(StarshipType.SATELLITE, 0.1, 8, new Vector(0, 200), new Vector(0.04, -0.05), 100);
+        this.starship = new Starship(StarshipType.SATELLITE, 0.1, 8, new Vector(0, 200), new Vector(0.04, -0.05), 100);
         var planet1 = orbitingPlanet(gravity, sun, 1, 300, 14, 0);
         var planet2 = orbitingPlanet(gravity, sun, 1, 200, 11, 2 / 3 * Math.PI);
         var planet3 = orbitingPlanet(gravity, sun, 1, 100, 8, 4 / 3 * Math.PI);
         // ------ DEFAULT LEVEL ------
-        this.universe = new Universe([sun, planet1, planet2, planet3, starship], gravity);
+        this.universe = new Universe([sun, planet1, planet2, planet3, this.starship], gravity);
     }
     Level.prototype.begin = function () {
-        // TODO initialise stuff
+        var _this = this;
+        window.addEventListener('keydown', function (e) {
+            var direction = ARROW_KEYS[e.keyCode];
+            if (direction)
+                _this.starship.startEngine(direction);
+        });
+        window.addEventListener('keyup', function (e) {
+            var direction = ARROW_KEYS[e.keyCode];
+            if (direction)
+                _this.starship.stopEngine(direction);
+        });
     };
     Level.prototype.move = function (dt) {
         this.universe.move(dt);
         // TODO check if the level is completed
     };
     Level.prototype.onComplete = function (callback) {
+        // TODO remove event listener
     };
     return Level;
 })();
@@ -254,7 +279,16 @@ var Stage = (function () {
                 this.circle(obj.p.x, obj.p.y, obj.r, getCelestialBodyColour(obj.type));
             }
             else if (obj instanceof Starship) {
-                this.square(obj.p.x, obj.p.y, obj.r, '#F00');
+                obj = obj;
+                this.rect(obj.p.x, obj.p.y, 8, 8, '#0CF');
+                if (obj.fire.up)
+                    this.rect(obj.p.x, obj.p.y + 9, 6, 10, '#F00');
+                if (obj.fire.down)
+                    this.rect(obj.p.x, obj.p.y - 9, 6, 10, '#F00');
+                if (obj.fire.left)
+                    this.rect(obj.p.x + 9, obj.p.y, 10, 6, '#F00');
+                if (obj.fire.right)
+                    this.rect(obj.p.x - 9, obj.p.y, 10, 6, '#F00');
             }
         }
     };
@@ -269,9 +303,9 @@ var Stage = (function () {
         this.context.arc(x + this.width / 2, y + this.height / 2, radius, 0, 2 * Math.PI);
         this.context.fill();
     };
-    Stage.prototype.square = function (x, y, radius, fill) {
+    Stage.prototype.rect = function (x, y, width, height, fill) {
         this.context.fillStyle = fill;
-        this.context.fillRect(x - radius / 2 + this.width / 2, y - radius / 2 + this.height / 2, radius, radius);
+        this.context.fillRect(x - width / 2 + this.width / 2, y - height / 2 + this.height / 2, width, height);
     };
     return Stage;
 })();
