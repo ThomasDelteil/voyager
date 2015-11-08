@@ -1,0 +1,15 @@
+{
+  "name": "voyager",
+  "version": "1.0.0",
+  "description": "Travel around the universe",
+  "scripts": {
+    "build_js": "./node_modules/.bin/tsc -t 'ES5' --out build/voyager.js src/*.ts --watch",
+    "build_css": "./node_modules/.bin/lessc assets/styles/*.less build/voyager.css",
+    "start": "npm run build_js && npm run build_css"
+  },
+  "homepage": "https://github.com/ThomasDelteil/voyager#readme",
+  "dependencies": {
+    "less": "^2.5.3",
+    "tsc": "^1.20150623.0"
+  }
+}
