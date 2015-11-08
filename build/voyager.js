@@ -65,12 +65,15 @@ var Particle = (function () {
     function Particle(m, p, v, r) {
         if (p === void 0) { p = Vector.origin(); }
         if (v === void 0) { v = Vector.origin(); }
+        if (r === void 0) { r = 0; }
         this.p = p;
         this.v = v;
         this.r = r;
         this.m = m;
     }
     Particle.prototype.move = function (dt, force) {
+        if (this.m === 0)
+            return;
         this.v.add(Vector.scale(force, dt / this.m));
         this.p.add(Vector.scale(this.v, dt));
     };
@@ -79,8 +82,8 @@ var Particle = (function () {
             return this._m;
         },
         set: function (newM) {
-            if (newM <= 0)
-                throw new Error("Cannot have a mass small than 0");
+            if (newM < 0)
+                throw new Error('Particles cannot have negative mass.');
             this._m = newM;
         },
         enumerable: true,
@@ -91,9 +94,8 @@ var Particle = (function () {
 /// <reference path="../physics/particle.ts"/>
 /// <reference path="../physics/vector.ts"/>
 var Universe = (function () {
-    function Universe(objects, radius, gravity) {
+    function Universe(objects, gravity) {
         this.objects = objects;
-        this.radius = radius;
         this.gravity = gravity;
     }
     Universe.prototype.add = function () {
@@ -144,6 +146,7 @@ var __extends = (this && this.__extends) || function (d, b) {
     function __() { this.constructor = d; }
     d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
 };
+var BURN_RATE = 0.1;
 var Starship = (function (_super) {
     __extends(Starship, _super);
     function Starship(type, m, r, p, v, fuel, orientation) {
@@ -157,7 +160,7 @@ var Starship = (function (_super) {
     // overrides Particle.move()
     Starship.prototype.move = function (dt, force) {
         _super.prototype.move.call(this, dt, force);
-        // TODO burn fuel	
+        // TODO burn fuel
     };
     Starship.prototype.startEngine = function () {
         this.isBurning = true;
@@ -175,7 +178,7 @@ var StarshipType;
 /// <reference path="../physics/particle.ts"/>
 var CelestialBody = (function (_super) {
     __extends(CelestialBody, _super);
-    function CelestialBody(type, r, m, p, v) {
+    function CelestialBody(type, m, r, p, v) {
         _super.call(this, m, p, v, r);
         this.type = type;
     }
@@ -196,23 +199,22 @@ var CelestialType;
 function orbitingPlanet(gravity, sun, mass, distance, radius, angle) {
     if (angle === void 0) { angle = 0; }
     var speed = Math.sqrt(gravity * (sun.m + mass) / distance);
-    console.log(speed);
     var p = new Vector(0, distance).rotateZ(angle);
     var v = new Vector(speed, 0).rotateZ(angle);
-    return new CelestialBody(CelestialType.PLANET, radius, mass, sun.p.clone().add(p), v);
+    return new CelestialBody(CelestialType.PLANET, mass, radius, sun.p.clone().add(p), v);
 }
 var Level = (function () {
     function Level(config) {
         if (config === void 0) { config = {}; }
-        // ---- DEFAULT LEVEL ----
+        // ------ DEFAULT LEVEL ------
         var gravity = 0.001;
-        var sun = new CelestialBody(CelestialType.STAR, 20, 1000, new Vector(250, 250), new Vector(0, 0));
-        var planet1 = orbitingPlanet(gravity, sun, 1, 220, 5, 0);
-        var planet2 = orbitingPlanet(gravity, sun, 1, 160, 10, 2 * Math.PI / 3);
-        var planet3 = orbitingPlanet(gravity, sun, 1, 100, 8, 4 * Math.PI / 3);
-        // let startship = new Starship(StarshipType.SATELLITE, 0.1, new Vector(265, 50), new Vector(0.09, 0.02), 100);
-        // ---- DEFAULT LEVEL ----
-        this.universe = new Universe([sun, planet1, planet2, planet3], 500, gravity);
+        var sun = new CelestialBody(CelestialType.STAR, 1000, 20, new Vector(0, 0), new Vector(0, 0));
+        var starship = new Starship(StarshipType.SATELLITE, 0.1, 8, new Vector(0, 200), new Vector(0.04, -0.05), 100);
+        var planet1 = orbitingPlanet(gravity, sun, 1, 300, 14, 0);
+        var planet2 = orbitingPlanet(gravity, sun, 1, 200, 11, 2 / 3 * Math.PI);
+        var planet3 = orbitingPlanet(gravity, sun, 1, 100, 8, 4 / 3 * Math.PI);
+        // ------ DEFAULT LEVEL ------
+        this.universe = new Universe([sun, planet1, planet2, planet3, starship], gravity);
     }
     Level.prototype.begin = function () {
         // TODO initialise stuff
@@ -226,35 +228,50 @@ var Level = (function () {
     return Level;
 })();
 /// <reference path="../game/universe.ts"/>
+/// <reference path="../elements/celestial_body.ts"/>
+/// <reference path="../elements/starship.ts"/>
+function getCelestialBodyColour(type) {
+    switch (type) {
+        case CelestialType.STAR: return '#D90';
+        case CelestialType.PLANET: return '#C51';
+        default: return '#333';
+    }
+}
 var Stage = (function () {
-    function Stage(id, width, height) {
+    function Stage(id) {
         this.id = id;
-        this.width = width;
-        this.height = height;
         this.canvas = document.getElementById(id);
-        this.canvas.width = width;
-        this.canvas.height = height;
         this.context = this.canvas.getContext('2d');
+        this.width = this.canvas.width = this.canvas.offsetWidth;
+        this.height = this.canvas.height = this.canvas.offsetHeight;
     }
     Stage.prototype.paint = function (universe) {
         this.background();
         for (var _i = 0, _a = universe.objects; _i < _a.length; _i++) {
             var obj = _a[_i];
-            this.circle(obj.p.x, obj.p.y, obj.r, '#F00');
+            if (obj instanceof CelestialBody) {
+                obj = obj;
+                this.circle(obj.p.x, obj.p.y, obj.r, getCelestialBodyColour(obj.type));
+            }
+            else if (obj instanceof Starship) {
+                this.square(obj.p.x, obj.p.y, obj.r, '#F00');
+            }
         }
     };
     Stage.prototype.background = function (colour) {
-        if (colour === void 0) { colour = '#006'; }
+        if (colour === void 0) { colour = '#013'; }
         this.context.fillStyle = colour;
         this.context.fillRect(0, 0, this.width, this.height);
     };
     Stage.prototype.circle = function (x, y, radius, fill) {
         this.context.beginPath();
         this.context.fillStyle = fill;
-        this.context.arc(x, y, radius, 0, 2 * Math.PI);
+        this.context.arc(x + this.width / 2, y + this.height / 2, radius, 0, 2 * Math.PI);
         this.context.fill();
-        this.context.strokeStyle = '#CCF';
-        this.context.stroke();
+    };
+    Stage.prototype.square = function (x, y, radius, fill) {
+        this.context.fillStyle = fill;
+        this.context.fillRect(x - radius / 2 + this.width / 2, y - radius / 2 + this.height / 2, radius, radius);
     };
     return Stage;
 })();
@@ -291,7 +308,7 @@ var Game = (function () {
             if (running)
                 window.requestAnimationFrame(getFrame);
             var now = Date.now();
-            level.move(now - _this.lastPaint);
+            level.move(Math.min(now - _this.lastPaint, 20));
             _this.stage.paint(level.universe);
             _this.lastPaint = now;
         }
@@ -305,6 +322,6 @@ var Game = (function () {
 })();
 /// <reference path="game/game.ts"/>
 /// <reference path="renderer/stage.ts"/>
-var stage = new Stage('voyager', 500, 500);
+var stage = new Stage('voyager');
 var game = new Game(stage, [{ id: 'level1' }, { id: 'level2' }]);
 game.play();
